@@ -4,6 +4,7 @@ A Cloudflare Worker that caches [litellm's model pricing data](https://github.co
 
 - **Web UI** — filterable, sortable table of all LLM model prices
 - **REST API** — query models by provider, mode, capabilities, cost, and context window
+- **MCP server** — native remote MCP endpoint at `/mcp`
 - **OpenAPI spec** — at `/openapi.json` for integration with LLM tools and MCP clients
 
 Data is refreshed automatically every 6 hours via cron trigger. Zero ongoing cost on Cloudflare's free tier.
@@ -64,7 +65,7 @@ Query parameters:
 
 | Param | Description |
 | ----- | ----------- |
-| `q` | Search model name or provider |
+| `q` | Search model name or provider; supports wildcards like `gpt-*-codex` and multi-term queries like `claude sonnet` |
 | `provider` | Filter by provider (e.g. `openai`, `anthropic`) |
 | `mode` | Filter by mode (`chat`, `embedding`, `completion`, etc.) |
 | `supports` | Comma-separated capabilities (`vision`, `function_calling`, `reasoning`, `prompt_caching`) |
@@ -91,10 +92,44 @@ Cache metadata (last update time).
 
 OpenAPI 3.1 spec for tool/MCP integration.
 
-## Using with LLMs / MCP
+## MCP
 
-The `/openapi.json` endpoint can be used directly with MCP clients that support OpenAPI specs.
-For a custom MCP server, point it at the API endpoints above.
+### `POST /mcp`
+
+Remote MCP server endpoint exposed over Streamable HTTP.
+
+Available tools:
+
+- `search_models` — search and filter models using the same provider/mode/query/capability/cost/context filters as the REST API
+- `list_providers` — list all known providers
+- `list_modes` — list all known model modes
+- `get_metadata` — return the last refresh timestamp and total model count
+
+For clients that support remote MCP directly, use:
+
+```text
+https://your-worker.your-subdomain.workers.dev/mcp
+```
+
+For clients that only support local stdio MCP, bridge with `mcp-remote`:
+
+```json
+{
+  "mcpServers": {
+    "llm-prices": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://your-worker.your-subdomain.workers.dev/mcp"
+      ]
+    }
+  }
+}
+```
+
+## Using with LLMs / OpenAPI
+
+The `/openapi.json` endpoint can be used directly with clients that support OpenAPI-based tool import.
 
 Example: find the cheapest chat models with vision support and 100K+ context:
 
