@@ -1,0 +1,10 @@
+name = "llm-prices"
+main = "src/index.ts"
+compatibility_date = "2024-12-30"
+
+[triggers]
+crons = ["0 */6 * * *"]
+
+[[kv_namespaces]]
+binding = "MODEL_PRICES"
+id = "PLACEHOLDER_KV_ID"
