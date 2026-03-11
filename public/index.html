@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Prices</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1><span>⚡</span> LLM Prices</h1>
+    <div class="meta" id="meta">Loading...</div>
+  </header>
+
+  <div class="controls">
+    <input type="text" class="search-input" id="search" placeholder="Search models (e.g. claude sonnet, gpt-*-codex, gemini pro)..." />
+    <select id="provider"><option value="">All Providers</option></select>
+    <select id="mode"><option value="">All Modes</option></select>
+  </div>
+
+  <div class="pill-bar" id="capabilities"></div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="table-wrap">
+    <table>
+      <thead id="thead"></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="pagination" id="pagination"></div>
+
+  <div class="overlay" id="overlay">
+    <div class="detail-panel" id="detail-panel"></div>
+  </div>
+
+  <div class="footer">
+    <span>Data from <a href="https://github.com/BerriAI/litellm" target="_blank">litellm</a> · Refreshed every 6 hours</span>
+    <span>
+      <a href="/openapi.json" target="_blank">OpenAPI Spec</a> ·
+      <a href="/api/models" target="_blank">API</a>
+    </span>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>
