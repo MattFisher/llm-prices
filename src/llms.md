@@ -14,7 +14,7 @@ Data is refreshed every 6 hours from [litellm](https://github.com/BerriAI/litell
 
 ## Query Parameters for /api/models
 
-- q: Free-text search across model name and provider
+- q: Search across model name and provider. Supports wildcards (*) and multi-term (space-separated, all must match). Examples: `gpt-*-codex`, `claude sonnet`, `gemini pro`
 - provider: Filter by provider (e.g. openai, anthropic, gemini, bedrock)
 - mode: Filter by mode (e.g. chat, embedding, completion, rerank)
 - sort: Sort field (e.g. input_cost_per_token, output_cost_per_token, max_input_tokens, key)

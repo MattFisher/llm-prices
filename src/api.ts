@@ -38,12 +38,19 @@ function applyFilters(models: ModelEntry[], params: FilterParams): ModelEntry[] 
   }
 
   if (params.q) {
-    const q = params.q.toLowerCase();
-    result = result.filter(
-      (m) =>
-        m.key.toLowerCase().includes(q) ||
-        (m.litellm_provider?.toLowerCase().includes(q) ?? false)
-    );
+    const terms = params.q.toLowerCase().split(/\s+/).filter(Boolean);
+    const matchers = terms.map((term) => {
+      if (term.includes("*")) {
+        const pattern = term.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+        const re = new RegExp(pattern);
+        return (s: string) => re.test(s);
+      }
+      return (s: string) => s.includes(term);
+    });
+    result = result.filter((m) => {
+      const haystack = m.key.toLowerCase() + " " + (m.litellm_provider?.toLowerCase() ?? "");
+      return matchers.every((fn) => fn(haystack));
+    });
   }
 
   if (params.supports) {

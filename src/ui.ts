@@ -385,7 +385,7 @@ export function renderHTML(): string {
   </header>
 
   <div class="controls">
-    <input type="text" class="search-input" id="search" placeholder="Search models (e.g. gpt-4, claude, gemini)..." />
+    <input type="text" class="search-input" id="search" placeholder="Search models (e.g. claude sonnet, gpt-*-codex, gemini pro)..." />
     <select id="provider"><option value="">All Providers</option></select>
     <select id="mode"><option value="">All Modes</option></select>
   </div>
@@ -515,13 +515,33 @@ async function init() {
   document.getElementById('mode').addEventListener('change', applyFilters);
 }
 
+function escapeRegex(s) {
+  return s.replace(/[-\\/\\\\^$+?.()|[\\]{}]/g, '\\\\$&');
+}
+
+function buildMatchers(q) {
+  if (!q) return [];
+  return q.toLowerCase().split(/\\s+/).filter(Boolean).map(function(term) {
+    if (term.indexOf('*') >= 0) {
+      var parts = term.split('*').map(escapeRegex);
+      var re = new RegExp(parts.join('.*'));
+      return function(s) { return re.test(s); };
+    }
+    return function(s) { return s.indexOf(term) >= 0; };
+  });
+}
+
 function applyFilters() {
-  const q = document.getElementById('search').value.toLowerCase();
+  const q = document.getElementById('search').value;
   const provider = document.getElementById('provider').value;
   const mode = document.getElementById('mode').value;
+  const matchers = buildMatchers(q);
 
   filteredModels = allModels.filter(m => {
-    if (q && !m.key.toLowerCase().includes(q) && !(m.litellm_provider || '').toLowerCase().includes(q)) return false;
+    if (matchers.length) {
+      const haystack = m.key.toLowerCase() + ' ' + (m.litellm_provider || '').toLowerCase();
+      if (!matchers.every(fn => fn(haystack))) return false;
+    }
     if (provider && m.litellm_provider !== provider) return false;
     if (mode && m.mode !== mode) return false;
     for (const cap of activeCapabilities) {
