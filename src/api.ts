@@ -22,7 +22,10 @@ function parseFilterParams(url: URL): FilterParams {
   return params;
 }
 
-function applyFilters(models: ModelEntry[], params: FilterParams): ModelEntry[] {
+export function applyFilters(
+  models: ModelEntry[],
+  params: FilterParams
+): ModelEntry[] {
   let result = models;
 
   if (params.provider) {

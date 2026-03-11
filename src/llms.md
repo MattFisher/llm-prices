@@ -12,6 +12,16 @@ Data is refreshed every 6 hours from [litellm](https://github.com/BerriAI/litell
 - [Metadata]({{BASE}}/api/meta): GET — returns cache metadata including last refresh timestamp and model count.
 - [OpenAPI Spec]({{BASE}}/openapi.json): GET — full OpenAPI 3.0 specification for tool/MCP integration.
 
+## MCP
+
+- [MCP Endpoint]({{BASE}}/mcp): Remote MCP server endpoint exposed over Streamable HTTP.
+- Tools:
+  - `search_models`: Search and filter models using the same provider/mode/query/capability/cost/context filters as the REST API.
+  - `list_providers`: List all known providers.
+  - `list_modes`: List all known model modes.
+  - `get_metadata`: Return the last refresh timestamp and total model count.
+- For clients that only support local stdio MCP, use `mcp-remote {{BASE}}/mcp` as a bridge.
+
 ## Query Parameters for /api/models
 
 - q: Search across model name and provider. Supports wildcards (*) and multi-term (space-separated, all must match). Examples: `gpt-*-codex`, `claude sonnet`, `gemini pro`

@@ -13,6 +13,11 @@
     <div class="meta" id="meta">Loading...</div>
   </header>
 
+  <div class="info-banner">
+    <strong>MCP endpoint:</strong> <a href="/mcp" target="_blank">/mcp</a>
+    <span>Use with remote MCP clients or bridge with <code>mcp-remote</code>.</span>
+  </div>
+
   <div class="controls">
     <input type="text" class="search-input" id="search" placeholder="Search models (e.g. claude sonnet, gpt-*-codex, gemini pro)..." />
     <select id="provider"><option value="">All Providers</option></select>
@@ -39,6 +44,7 @@
   <div class="footer">
     <span>Data from <a href="https://github.com/BerriAI/litellm" target="_blank">litellm</a> · Refreshed every 6 hours</span>
     <span>
+      <a href="/mcp" target="_blank">MCP</a> ·
       <a href="/openapi.json" target="_blank">OpenAPI Spec</a> ·
       <a href="/api/models" target="_blank">API</a>
     </span>

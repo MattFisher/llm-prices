@@ -49,6 +49,35 @@ header h1 span { color: var(--accent); }
   color: var(--text-muted);
 }
 
+.info-banner {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.info-banner strong { color: var(--text); }
+
+.info-banner a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.info-banner a:hover { text-decoration: underline; }
+
+.info-banner code {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 0.78rem;
+  color: var(--text);
+}
+
 .controls {
   display: flex;
   gap: 10px;

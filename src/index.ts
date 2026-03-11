@@ -2,6 +2,7 @@ import { Env } from "./types";
 import { fetchAndCache } from "./data";
 import { handleApiRequest } from "./api";
 import { renderLlmsTxt } from "./llms-txt";
+import { handleMcpRequest } from "./mcp";
 
 export default {
   async fetch(
@@ -16,7 +17,7 @@ export default {
       return new Response(null, {
         headers: {
           "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, OPTIONS",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type",
         },
       });
@@ -47,6 +48,9 @@ export default {
         );
       }
     }
+
+    const mcpResponse = await handleMcpRequest(request, env, _ctx);
+    if (mcpResponse) return mcpResponse;
 
     // API routes
     const apiResponse = await handleApiRequest(url, env);
