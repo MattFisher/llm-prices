@@ -7,4 +7,4 @@ crons = ["0 */6 * * *"]
 
 [[kv_namespaces]]
 binding = "MODEL_PRICES"
-id = "PLACEHOLDER_KV_ID"
+id = "73eb710c056640bbb3e4e49968e51b22"

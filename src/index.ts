@@ -22,6 +22,32 @@ export default {
       });
     }
 
+    // Manual refresh trigger (requires REFRESH_SECRET)
+    if (url.pathname === "/api/refresh" && request.method === "POST") {
+      const token =
+        url.searchParams.get("token") ??
+        request.headers.get("Authorization")?.replace("Bearer ", "");
+      if (!env.REFRESH_SECRET || token !== env.REFRESH_SECRET) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Unauthorized" }),
+          { status: 401, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      try {
+        const { count } = await fetchAndCache(env);
+        return new Response(
+          JSON.stringify({ ok: true, count, refreshed_at: new Date().toISOString() }),
+          { headers: { "Content-Type": "application/json" } }
+        );
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Unknown error";
+        return new Response(
+          JSON.stringify({ ok: false, error: msg }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // API routes
     const apiResponse = await handleApiRequest(url, env);
     if (apiResponse) return apiResponse;

@@ -40,4 +40,5 @@ export interface FilterParams {
 
 export interface Env {
   MODEL_PRICES: KVNamespace;
+  REFRESH_SECRET?: string;
 }
