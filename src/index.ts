@@ -2,6 +2,7 @@ import { Env } from "./types";
 import { fetchAndCache } from "./data";
 import { handleApiRequest } from "./api";
 import { renderHTML } from "./ui";
+import { renderLlmsTxt } from "./llms-txt";
 
 export default {
   async fetch(
@@ -51,6 +52,14 @@ export default {
     // API routes
     const apiResponse = await handleApiRequest(url, env);
     if (apiResponse) return apiResponse;
+
+    // llms.txt
+    if (url.pathname === "/llms.txt") {
+      const base = url.origin;
+      return new Response(renderLlmsTxt(base), {
+        headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      });
+    }
 
     // Home page
     if (url.pathname === "/" || url.pathname === "/index.html") {

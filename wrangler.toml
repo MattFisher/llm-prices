@@ -5,6 +5,11 @@ compatibility_date = "2024-12-30"
 [triggers]
 crons = ["0 */6 * * *"]
 
+[[rules]]
+type = "Text"
+globs = ["**/*.md"]
+fallthrough = false
+
 [[kv_namespaces]]
 binding = "MODEL_PRICES"
 id = "73eb710c056640bbb3e4e49968e51b22"
