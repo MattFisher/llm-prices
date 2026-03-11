@@ -249,6 +249,132 @@ export function renderHTML(): string {
 
   .footer a { color: var(--accent); text-decoration: none; }
   .footer a:hover { text-decoration: underline; }
+
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    justify-content: center;
+    align-items: start;
+    padding: 40px 20px;
+    overflow-y: auto;
+  }
+
+  .overlay.open { display: flex; }
+
+  .detail-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    max-width: 720px;
+    width: 100%;
+    padding: 28px;
+    position: relative;
+    animation: slideUp 0.15s ease-out;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .detail-panel .close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .detail-panel .close-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  .detail-panel h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    padding-right: 40px;
+    word-break: break-all;
+  }
+
+  .detail-panel .subtitle {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+  }
+
+  .detail-section {
+    margin-bottom: 20px;
+  }
+
+  .detail-section h3 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .detail-item {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+
+  .detail-item .label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 2px;
+  }
+
+  .detail-item .value {
+    font-size: 0.85rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .detail-item .value.green { color: var(--green); }
+  .detail-item .value.yellow { color: var(--yellow); }
+
+  .detail-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .detail-badges .badge { font-size: 0.75rem; padding: 4px 10px; }
+
+  .detail-raw {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 0.75rem;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    overflow-x: auto;
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  tr[data-clickable] { cursor: pointer; }
 </style>
 </head>
 <body>
@@ -276,6 +402,10 @@ export function renderHTML(): string {
   </div>
 
   <div class="pagination" id="pagination"></div>
+
+  <div class="overlay" id="overlay">
+    <div class="detail-panel" id="detail-panel"></div>
+  </div>
 
   <div class="footer">
     <span>Data from <a href="https://github.com/BerriAI/litellm" target="_blank">litellm</a> · Refreshed every 6 hours</span>
@@ -468,6 +598,8 @@ function renderBody() {
 
   for (const model of page) {
     const tr = document.createElement('tr');
+    tr.setAttribute('data-clickable', '');
+    tr.addEventListener('click', () => showDetail(model));
     for (const col of COLUMNS) {
       const td = document.createElement('td');
       if (col.cls) td.className = col.cls;
@@ -519,6 +651,102 @@ function debounce(fn, ms) {
   let t;
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
+
+const SKIP_KEYS = new Set(['key', 'litellm_provider']);
+
+const COST_KEYS = [
+  'input_cost_per_token', 'output_cost_per_token', 'output_cost_per_reasoning_token',
+  'input_cost_per_audio_token', 'cache_read_input_token_cost',
+  'input_cost_per_token_flex', 'output_cost_per_token_flex',
+  'input_cost_per_token_priority',
+  'cache_read_input_token_cost_flex',
+];
+
+function showDetail(model) {
+  const panel = document.getElementById('detail-panel');
+  const overlay = document.getElementById('overlay');
+
+  // Pricing section
+  let pricingHtml = '<div class="detail-grid">';
+  for (const k of COST_KEYS) {
+    if (model[k] != null) {
+      const label = k.replace(/_/g, ' ').replace('cost per token', '$/1M tok');
+      const val = costPerMillion(model[k]);
+      const cls = k.includes('input') || k.includes('cache') ? 'green' : 'yellow';
+      pricingHtml += '<div class="detail-item"><div class="label">' + esc(label) + '</div><div class="value ' + cls + '">' + val + '</div></div>';
+    }
+  }
+  if (model.output_cost_per_image != null) {
+    pricingHtml += '<div class="detail-item"><div class="label">output cost per image</div><div class="value yellow">$' + model.output_cost_per_image + '</div></div>';
+  }
+  pricingHtml += '</div>';
+
+  // Context section
+  let contextHtml = '<div class="detail-grid">';
+  const ctxFields = [
+    ['max_input_tokens', 'Max Input'], ['max_output_tokens', 'Max Output'],
+    ['max_tokens', 'Max Tokens (legacy)'],
+  ];
+  for (const [k, label] of ctxFields) {
+    if (model[k] != null) {
+      contextHtml += '<div class="detail-item"><div class="label">' + label + '</div><div class="value">' + formatTokens(model[k]) + ' (' + Number(model[k]).toLocaleString() + ')</div></div>';
+    }
+  }
+  contextHtml += '</div>';
+
+  // Capabilities
+  const allCaps = Object.keys(model).filter(k => k.startsWith('supports_') && model[k] === true);
+  let capsHtml = '<div class="detail-badges">';
+  const capStyles = { supports_function_calling: 'tools', supports_vision: 'vision', supports_reasoning: 'reasoning', supports_prompt_caching: 'caching' };
+  for (const c of allCaps) {
+    const label = c.replace('supports_', '').replace(/_/g, ' ');
+    const cls = capStyles[c] || '';
+    capsHtml += '<span class="badge ' + cls + '">' + esc(label) + '</span>';
+  }
+  capsHtml += '</div>';
+
+  // Raw JSON of remaining fields
+  const shown = new Set([...SKIP_KEYS, ...COST_KEYS, 'output_cost_per_image', ...ctxFields.map(f => f[0]), ...allCaps, 'mode']);
+  const extra = {};
+  for (const [k, v] of Object.entries(model)) {
+    if (!shown.has(k)) extra[k] = v;
+  }
+
+  let rawHtml = '';
+  if (Object.keys(extra).length > 0) {
+    rawHtml = '<div class="detail-section"><h3>All Properties</h3><div class="detail-raw">' + esc(JSON.stringify(extra, null, 2)) + '</div></div>';
+  }
+
+  panel.innerHTML = ''
+    + '<button class="close-btn" id="detail-close">&times;</button>'
+    + '<h2>' + esc(model.key) + '</h2>'
+    + '<div class="subtitle">' + esc(model.litellm_provider) + (model.mode ? ' · ' + esc(model.mode) : '') + '</div>'
+    + '<div class="detail-section"><h3>Pricing (per 1M tokens)</h3>' + pricingHtml + '</div>'
+    + '<div class="detail-section"><h3>Context Window</h3>' + contextHtml + '</div>'
+    + (allCaps.length ? '<div class="detail-section"><h3>Capabilities</h3>' + capsHtml + '</div>' : '')
+    + rawHtml;
+
+  overlay.classList.add('open');
+  document.getElementById('detail-close').addEventListener('click', closeDetail);
+}
+
+function closeDetail() {
+  document.getElementById('overlay').classList.remove('open');
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+document.getElementById('overlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeDetail();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeDetail();
+});
 
 init();
 </script>

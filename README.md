@@ -63,7 +63,7 @@ After deploying, trigger the cron manually from the Cloudflare dashboard (Worker
 Query parameters:
 
 | Param | Description |
-| --- | --- |
+| ----- | ----------- |
 | `q` | Search model name or provider |
 | `provider` | Filter by provider (e.g. `openai`, `anthropic`) |
 | `mode` | Filter by mode (`chat`, `embedding`, `completion`, etc.) |
