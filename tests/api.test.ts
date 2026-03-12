@@ -1,0 +1,121 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Env, ModelEntry } from "../src/types";
+
+vi.mock("../src/data", () => ({
+  getMeta: vi.fn(),
+  getModels: vi.fn(),
+}));
+
+import { getMeta, getModels } from "../src/data";
+import { applyFilters, handleApiRequest } from "../src/api";
+
+const models: ModelEntry[] = [
+  {
+    key: "gpt-4o",
+    litellm_provider: "openai",
+    mode: "chat",
+    input_cost_per_token: 0.0000025,
+    output_cost_per_token: 0.00001,
+    cache_read_input_token_cost: 0.00000125,
+    supports_vision: true,
+    max_input_tokens: 128000,
+  },
+  {
+    key: "gemini/gemini-2.5-pro",
+    litellm_provider: "gemini",
+    mode: "chat",
+    input_cost_per_token: 0.00000125,
+    output_cost_per_token: 0.00001,
+    cache_read_input_token_cost: 0.000000125,
+    supports_vision: true,
+    max_input_tokens: 1048576,
+  },
+  {
+    key: "text-embedding-3-small",
+    litellm_provider: "openai",
+    mode: "embedding",
+    input_cost_per_token: 0.00000002,
+    max_input_tokens: 8191,
+  },
+];
+
+const env = {} as Env;
+const mockedGetModels = vi.mocked(getModels);
+const mockedGetMeta = vi.mocked(getMeta);
+
+describe("applyFilters", () => {
+  it("supports wildcard search, capability filters, and sorting", () => {
+    const filtered = applyFilters(models, {
+      q: "gpt*",
+      supports: "vision",
+      sort: "input_cost_per_token",
+      order: "asc",
+    });
+
+    expect(filtered.map((model) => model.key)).toEqual(["gpt-4o"]);
+  });
+});
+
+describe("handleApiRequest", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedGetModels.mockResolvedValue(models);
+    mockedGetMeta.mockResolvedValue({ updated_at: "2026-03-13T00:00:00.000Z" });
+  });
+
+  it("returns Inspect costs as YAML", async () => {
+    const response = await handleApiRequest(
+      new URL(
+        "https://example.com/api/inspect-costs?model=openai/gpt-4o&model=google/gemini-2.5-pro&format=yaml"
+      ),
+      env
+    );
+
+    expect(response).not.toBeNull();
+    expect(response?.status).toBe(200);
+    expect(response?.headers.get("Content-Type")).toContain("application/yaml");
+    await expect(response?.text()).resolves.toBe(
+      '"openai/gpt-4o":\n  input: 2.5\n  output: 10\n  input_cache_write: 0\n  input_cache_read: 1.25\n"google/gemini-2.5-pro":\n  input: 1.25\n  output: 10\n  input_cache_write: 0\n  input_cache_read: 0.125'
+    );
+  });
+
+  it("returns a 400 when no inspect model names are provided", async () => {
+    const response = await handleApiRequest(
+      new URL("https://example.com/api/inspect-costs"),
+      env
+    );
+
+    expect(response).not.toBeNull();
+    expect(response?.status).toBe(400);
+    await expect(response?.json()).resolves.toEqual({
+      error:
+        "At least one model is required. Provide ?model=openai/gpt-4o or ?models=openai/gpt-4o,anthropic/claude-sonnet-4-5",
+    });
+  });
+
+  it("returns unresolved inspect model names with a 400 response", async () => {
+    const response = await handleApiRequest(
+      new URL("https://example.com/api/inspect-costs?model=azureai/Llama-3.3-70B-Instruct"),
+      env
+    );
+
+    expect(response).not.toBeNull();
+    expect(response?.status).toBe(400);
+    await expect(response?.json()).resolves.toEqual({
+      error: "One or more requested models could not be resolved",
+      unresolved: [
+        {
+          model: "azureai/Llama-3.3-70B-Instruct",
+          candidates: [
+            "azureai/Llama-3.3-70B-Instruct",
+            "azure_ai/Llama-3.3-70B-Instruct",
+          ],
+        },
+      ],
+    });
+  });
+
+  it("returns null for non-API routes", async () => {
+    await expect(handleApiRequest(new URL("https://example.com/"), env)).resolves.toBeNull();
+  });
+});

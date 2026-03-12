@@ -6,7 +6,7 @@ import { getMeta, getModels } from "./data";
 import { buildInspectCostExport, renderInspectCostsYaml } from "./inspect";
 import { Env, FilterParams } from "./types";
 
-function createServer(env: Env): McpServer {
+export function createServer(env: Env): McpServer {
   const server = new McpServer({
     name: "LLM Prices MCP",
     version: "1.0.0",
