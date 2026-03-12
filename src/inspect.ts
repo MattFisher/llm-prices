@@ -17,6 +17,11 @@ export interface InspectExportResult {
   unresolved: InspectResolutionError[];
 }
 
+/**
+ * Inspect provider names do not always line up with the LiteLLM provider names
+ * used in the cached dataset. This table captures the common provider-level
+ * rewrites before model-level resolution happens.
+ */
 const PROVIDER_ALIASES: Record<string, string> = {
   azureai: "azure_ai",
   cf: "cloudflare",
@@ -53,6 +58,10 @@ function splitInspectModelName(modelName: string): {
   };
 }
 
+/**
+ * Adds a candidate lookup key and, when helpful, a punctuation-normalized
+ * variant. This is primarily used for model versions such as `4.5` vs `4-5`.
+ */
 function addCandidate(candidates: Set<string>, candidate: string): void {
   if (!candidate) {
     return;
@@ -65,6 +74,11 @@ function addCandidate(candidates: Set<string>, candidate: string): void {
   }
 }
 
+/**
+ * Normalizes model identifiers for fuzzy comparison when exact key matching is
+ * not enough. The goal is to be tolerant of `.`, `_`, and `-` differences while
+ * still keeping provider segments intact.
+ */
 function normalizeForComparison(value: string): string {
   return value
     .trim()
@@ -74,10 +88,19 @@ function normalizeForComparison(value: string): string {
     .join("/");
 }
 
+/**
+ * Returns the LiteLLM provider key that should be used for provider-scoped
+ * matching.
+ */
 function providerAlias(provider: string): string {
   return PROVIDER_ALIASES[provider.toLowerCase()] ?? provider.toLowerCase();
 }
 
+/**
+ * Expands a requested Inspect model name into the set of dataset keys that are
+ * plausible matches. The first candidates preserve the user-supplied provider
+ * prefix, and provider-specific rewrites add the equivalent LiteLLM forms.
+ */
 function candidateKeysForInspectModel(modelName: string): string[] {
   const trimmed = modelName.trim();
   const { provider, model } = splitInspectModelName(trimmed);
@@ -147,6 +170,11 @@ function candidateKeysForInspectModel(modelName: string): string[] {
   return [...candidates];
 }
 
+/**
+ * Tries exact key matches first, then falls back to punctuation-normalized
+ * comparisons. This keeps resolution deterministic while still handling common
+ * naming differences between Inspect and LiteLLM.
+ */
 function findMatchingModel(
   models: ModelEntry[],
   candidates: string[]
@@ -174,6 +202,12 @@ function findMatchingModel(
   return null;
 }
 
+/**
+ * Resolves a requested Inspect model name against the cached model dataset.
+ * When the request includes a provider, resolution is intentionally scoped to
+ * that provider first so that overlapping model keys across providers do not
+ * silently return the wrong entry.
+ */
 function findModelByCandidates(
   models: ModelEntry[],
   modelName: string
@@ -203,6 +237,10 @@ function findModelByCandidates(
   return null;
 }
 
+/**
+ * Converts LiteLLM's per-token pricing fields into Inspect's dollars-per-million
+ * `ModelCost` shape.
+ */
 export function toInspectModelCost(model: ModelEntry): InspectModelCost {
   return {
     input: costPerMillion(model.input_cost_per_token),
@@ -214,6 +252,10 @@ export function toInspectModelCost(model: ModelEntry): InspectModelCost {
   };
 }
 
+/**
+ * Builds an Inspect-compatible export for the requested model names while also
+ * reporting unresolved lookups together with the candidate keys that were tried.
+ */
 export function buildInspectCostExport(
   models: ModelEntry[],
   requestedModels: string[]
@@ -242,6 +284,11 @@ export function buildInspectCostExport(
   return { costs, unresolved };
 }
 
+/**
+ * Serializes the Inspect cost map into a minimal YAML document suitable for
+ * writing directly to `--model-cost-config`. A trailing newline is included so
+ * shell prompts do not get appended to the last line when using `curl -o`.
+ */
 export function renderInspectCostsYaml(
   costs: Record<string, InspectModelCost>
 ): string {
