@@ -143,7 +143,7 @@ describe("renderInspectCostsYaml", () => {
     });
 
     expect(yaml).toBe(
-      '"openai/gpt-4o":\n  input: 2.5\n  output: 10\n  input_cache_write: 0\n  input_cache_read: 1.25\n'
+      '"openai/gpt-4o":\n  input: 2.50\n  output: 10.00\n  input_cache_write: 0.00\n  input_cache_read: 1.25\n'
     );
   });
 });

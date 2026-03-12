@@ -91,7 +91,7 @@ describe("handleApiRequest", () => {
     expect(response?.status).toBe(200);
     expect(response?.headers.get("Content-Type")).toContain("application/yaml");
     await expect(response?.text()).resolves.toBe(
-      '"openai/gpt-4o":\n  input: 2.5\n  output: 10\n  input_cache_write: 0\n  input_cache_read: 1.25\n"google/gemini-2.5-pro":\n  input: 1.25\n  output: 10\n  input_cache_write: 0\n  input_cache_read: 0.125\n'
+      '"openai/gpt-4o":\n  input: 2.50\n  output: 10.00\n  input_cache_write: 0.00\n  input_cache_read: 1.25\n"google/gemini-2.5-pro":\n  input: 1.25\n  output: 10.00\n  input_cache_write: 0.00\n  input_cache_read: 0.125\n'
     );
   });
 

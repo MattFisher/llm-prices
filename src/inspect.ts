@@ -96,6 +96,25 @@ function providerAlias(provider: string): string {
   return PROVIDER_ALIASES[provider.toLowerCase()] ?? provider.toLowerCase();
 }
 
+function formatYamlNumber(value: number): string {
+  const fixed = value.toFixed(6);
+  const trimmed = fixed.replace(/(\.\d*?[1-9])0+$/u, "$1");
+
+  if (trimmed.endsWith(".000000")) {
+    return `${value.toFixed(2)}`;
+  }
+
+  if (/^\d+\.\d$/u.test(trimmed)) {
+    return `${trimmed}0`;
+  }
+
+  if (/^\d+$/u.test(trimmed)) {
+    return `${trimmed}.00`;
+  }
+
+  return trimmed;
+}
+
 /**
  * Expands a requested Inspect model name into the set of dataset keys that are
  * plausible matches. The first candidates preserve the user-supplied provider
@@ -295,7 +314,7 @@ export function renderInspectCostsYaml(
   const body = Object.entries(costs)
     .map(
       ([model, cost]) =>
-        `${JSON.stringify(model)}:\n  input: ${cost.input}\n  output: ${cost.output}\n  input_cache_write: ${cost.input_cache_write}\n  input_cache_read: ${cost.input_cache_read}`
+        `${JSON.stringify(model)}:\n  input: ${formatYamlNumber(cost.input)}\n  output: ${formatYamlNumber(cost.output)}\n  input_cache_write: ${formatYamlNumber(cost.input_cache_write)}\n  input_cache_read: ${formatYamlNumber(cost.input_cache_read)}`
     )
     .join("\n");
 
