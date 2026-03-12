@@ -148,6 +148,7 @@ Remote MCP server endpoint exposed over Streamable HTTP.
 Available tools:
 
 - `search_models` — search and filter models using the same provider/mode/query/capability/cost/context filters as the REST API
+- `export_inspect_costs` — export Inspect-compatible model cost config for one or more Inspect model names as JSON or YAML
 - `list_providers` — list all known providers
 - `list_modes` — list all known model modes
 - `get_metadata` — return the last refresh timestamp and total model count

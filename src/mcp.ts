@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { applyFilters } from "./api";
 import { getMeta, getModels } from "./data";
+import { buildInspectCostExport, renderInspectCostsYaml } from "./inspect";
 import { Env, FilterParams } from "./types";
 
 function createServer(env: Env): McpServer {
@@ -64,6 +65,70 @@ function createServer(env: Env): McpServer {
           },
         ],
         structuredContent: result,
+      };
+    }
+  );
+
+  server.registerTool(
+    "export_inspect_costs",
+    {
+      description:
+        "Export Inspect-compatible model cost data for one or more Inspect model names as JSON or YAML.",
+      inputSchema: z.object({
+        models: z.array(z.string()).min(1),
+        format: z.enum(["json", "yaml"]).optional(),
+      }),
+    },
+    async (args) => {
+      const models = await getModels(env);
+      const result = buildInspectCostExport(models, args.models);
+      const format = args.format ?? "json";
+
+      if (result.unresolved.length > 0) {
+        const errorResult = {
+          error: "One or more requested models could not be resolved",
+          unresolved: result.unresolved,
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(errorResult, null, 2),
+            },
+          ],
+          structuredContent: errorResult,
+          isError: true,
+        };
+      }
+
+      if (format === "yaml") {
+        const yaml = renderInspectCostsYaml(result.costs);
+        return {
+          content: [
+            {
+              type: "text",
+              text: yaml,
+            },
+          ],
+          structuredContent: {
+            format,
+            costs: result.costs,
+          },
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result.costs, null, 2),
+          },
+        ],
+        structuredContent: {
+          format,
+          costs: result.costs,
+        },
       };
     }
   );
