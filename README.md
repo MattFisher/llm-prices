@@ -9,6 +9,12 @@ A Cloudflare Worker that caches [litellm's model pricing data](https://github.co
 
 Data is refreshed automatically every 6 hours via cron trigger. Zero ongoing cost on Cloudflare's free tier.
 
+Production deployment:
+
+```text
+https://llm-prices.llm-prices.workers.dev/
+```
+
 ## Quick Start
 
 ```bash
@@ -112,7 +118,7 @@ All values are returned in dollars per million tokens.
 Examples:
 
 ```bash
-curl "http://localhost:8787/api/inspect-costs?model=openai/gpt-4o&model=anthropic/claude-sonnet-4-5&format=yaml" -o pricing.yaml
+curl "https://llm-prices.llm-prices.workers.dev/api/inspect-costs?model=openai/gpt-4o&model=anthropic/claude-sonnet-4-5&format=yaml" -o pricing.yaml
 ```
 
 ```bash
@@ -120,7 +126,7 @@ inspect eval ctf.py --model-cost-config pricing.yaml --cost-limit 2.00
 ```
 
 ```bash
-curl "http://localhost:8787/api/inspect-costs?models=openai/gpt-4o,google/gemini-2.5-pro,openrouter/gryphe/mythomax-l2-13b&format=json" -o pricing.json
+curl "https://llm-prices.llm-prices.workers.dev/api/inspect-costs?models=openai/gpt-4o,google/gemini-2.5-pro,openrouter/gryphe/mythomax-l2-13b&format=json" -o pricing.json
 ```
 
 Provider naming notes:
@@ -156,7 +162,7 @@ Available tools:
 For clients that support remote MCP directly, use:
 
 ```text
-https://your-worker.your-subdomain.workers.dev/mcp
+https://llm-prices.llm-prices.workers.dev/mcp
 ```
 
 For clients that only support local stdio MCP, bridge with `mcp-remote`:
@@ -168,7 +174,7 @@ For clients that only support local stdio MCP, bridge with `mcp-remote`:
       "command": "npx",
       "args": [
         "mcp-remote",
-        "https://your-worker.your-subdomain.workers.dev/mcp"
+        "https://llm-prices.llm-prices.workers.dev/mcp"
       ]
     }
   }
