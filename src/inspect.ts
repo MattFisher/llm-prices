@@ -96,6 +96,61 @@ function providerAlias(provider: string): string {
   return PROVIDER_ALIASES[provider.toLowerCase()] ?? provider.toLowerCase();
 }
 
+function splitModelSegments(modelName: string): string[] {
+  return modelName
+    .trim()
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+}
+
+function preferredProvidersForInspectModel(modelName: string): string[] {
+  const [provider = "", qualifier = "", subqualifier = ""] = splitModelSegments(
+    modelName
+  ).map((segment) => segment.toLowerCase());
+
+  if (provider === "openai" && qualifier === "azure") {
+    return ["azure", "openai"];
+  }
+
+  if (provider === "anthropic" && qualifier === "bedrock") {
+    return ["bedrock", "bedrock_converse"];
+  }
+
+  if (provider === "anthropic" && qualifier === "vertex") {
+    return ["vertex_ai-anthropic_models"];
+  }
+
+  if (provider === "anthropic" && qualifier === "azure") {
+    return ["azure_ai", "anthropic"];
+  }
+
+  if (provider === "google" && qualifier === "vertex") {
+    return ["vertex_ai-language-models", "gemini"];
+  }
+
+  if (provider === "mistral" && qualifier === "azure") {
+    return ["azure_ai", "mistral"];
+  }
+
+  if (provider === "together" && qualifier === "minimaxai") {
+    return ["minimax", "together_ai"];
+  }
+
+  if (provider === "openai-api" && qualifier) {
+    return [providerAlias(qualifier), qualifier];
+  }
+
+  if (provider === "hf-inference-providers" && qualifier) {
+    const selectedProvider = subqualifier.split(":")[1];
+    if (selectedProvider) {
+      return [providerAlias(selectedProvider), selectedProvider];
+    }
+  }
+
+  return [providerAlias(provider)];
+}
+
 function formatYamlNumber(value: number): string {
   const fixed = value.toFixed(6);
   const trimmed = fixed.replace(/(\.\d*?[1-9])0+$/u, "$1");
@@ -124,6 +179,9 @@ function candidateKeysForInspectModel(modelName: string): string[] {
   const trimmed = modelName.trim();
   const { provider, model } = splitInspectModelName(trimmed);
   const candidates = new Set<string>();
+  const segments = splitModelSegments(trimmed);
+  const qualifier = segments[1]?.toLowerCase();
+  const lastSegment = segments.at(-1) ?? "";
 
   if (!trimmed) {
     return [];
@@ -140,7 +198,42 @@ function candidateKeysForInspectModel(modelName: string): string[] {
 
   switch (providerLower) {
     case "openai":
+      if (qualifier === "azure") {
+        const deployment = segments.slice(2).join("/");
+        addCandidate(candidates, deployment);
+        addCandidate(candidates, `azure/${deployment}`);
+        addCandidate(candidates, `openai/${deployment}`);
+        break;
+      }
+
+      addCandidate(candidates, model);
+      break;
+
     case "anthropic":
+      if (qualifier === "bedrock") {
+        const bedrockModel = segments.slice(2).join("/");
+        addCandidate(candidates, bedrockModel);
+        addCandidate(candidates, `bedrock/${bedrockModel}`);
+        break;
+      }
+
+      if (qualifier === "vertex") {
+        const vertexModel = segments.slice(2).join("/");
+        addCandidate(candidates, vertexModel);
+        addCandidate(candidates, `vertex_ai/${vertexModel}`);
+        break;
+      }
+
+      if (qualifier === "azure") {
+        const deployment = segments.slice(2).join("/");
+        addCandidate(candidates, deployment);
+        addCandidate(candidates, `azure_ai/${deployment}`);
+        break;
+      }
+
+      addCandidate(candidates, model);
+      break;
+
     case "bedrock":
     case "bedrock_converse":
     case "bedrock-converse":
@@ -148,6 +241,14 @@ function candidateKeysForInspectModel(modelName: string): string[] {
       break;
 
     case "google":
+      if (qualifier === "vertex") {
+        const vertexModel = segments.slice(2).join("/");
+        addCandidate(candidates, vertexModel);
+        addCandidate(candidates, `vertex_ai/${vertexModel}`);
+        addCandidate(candidates, `gemini/${vertexModel}`);
+        break;
+      }
+
       addCandidate(candidates, `gemini/${model}`);
       break;
 
@@ -164,6 +265,10 @@ function candidateKeysForInspectModel(modelName: string): string[] {
     case "together":
       addCandidate(candidates, `together_ai/${model}`);
       addCandidate(candidates, model);
+      if (qualifier === "minimaxai") {
+        addCandidate(candidates, `minimax/${lastSegment}`);
+        addCandidate(candidates, lastSegment);
+      }
       break;
 
     case "fireworks":
@@ -181,8 +286,51 @@ function candidateKeysForInspectModel(modelName: string): string[] {
       addCandidate(candidates, model);
       break;
 
+    case "mistral":
+      if (qualifier === "azure") {
+        const deployment = segments.slice(2).join("/");
+        addCandidate(candidates, deployment);
+        addCandidate(candidates, `azure_ai/${deployment}`);
+        addCandidate(candidates, `mistral/${deployment}`);
+        break;
+      }
+
+      addCandidate(candidates, `${aliasedProvider}/${model}`);
+      addCandidate(candidates, model);
+      break;
+
+    case "openai-api": {
+      const compatProvider = segments[1];
+      const compatModel = segments.slice(2).join("/");
+      addCandidate(candidates, compatModel);
+      addCandidate(candidates, `${compatProvider}/${compatModel}`);
+      if (compatProvider) {
+        addCandidate(
+          candidates,
+          `${providerAlias(compatProvider)}/${compatModel}`
+        );
+      }
+      break;
+    }
+
+    case "hf-inference-providers": {
+      const baseProvider = segments[1];
+      const rawModel = segments.slice(2).join("/");
+      const [baseModel, selectedProvider] = rawModel.split(":");
+
+      addCandidate(candidates, `${baseProvider}/${baseModel}`);
+      addCandidate(candidates, baseModel);
+
+      if (selectedProvider) {
+        addCandidate(candidates, `${selectedProvider}/${baseModel}`);
+        addCandidate(candidates, `${selectedProvider}/${baseProvider}/${baseModel}`);
+      }
+      break;
+    }
+
     default:
       addCandidate(candidates, `${aliasedProvider}/${model}`);
+      addCandidate(candidates, model);
       break;
   }
 
@@ -218,6 +366,39 @@ function findMatchingModel(
     }
   }
 
+  const rankedPrefixMatches = models
+    .map((model) => {
+      const normalizedKey = normalizeForComparison(model.key);
+      let bestScore: [number, number] | null = null;
+
+      for (const candidate of normalizedCandidates) {
+        if (!normalizedKey.startsWith(`${candidate}-`)) {
+          continue;
+        }
+
+        const suffix = normalizedKey.slice(candidate.length + 1);
+        const score: [number, number] =
+          /^(latest|preview|\d{3,}|\d{4}-\d{2}-\d{2}|v\d.*)$/u.test(suffix)
+            ? [0, normalizedKey.length]
+            : [/^\d$/u.test(suffix) ? 2 : 1, normalizedKey.length];
+
+        if (!bestScore || score[0] < bestScore[0] || (score[0] === bestScore[0] && score[1] < bestScore[1])) {
+          bestScore = score;
+        }
+      }
+
+      return bestScore ? { model, score: bestScore } : null;
+    })
+    .filter(
+      (value): value is { model: ModelEntry; score: [number, number] } =>
+        value !== null
+    )
+    .sort((a, b) => a.score[0] - b.score[0] || a.score[1] - b.score[1]);
+
+  if (rankedPrefixMatches.length > 0) {
+    return rankedPrefixMatches[0]?.model ?? null;
+  }
+
   return null;
 }
 
@@ -237,9 +418,11 @@ function findModelByCandidates(
     return findMatchingModel(models, candidates);
   }
 
-  const aliasedProvider = providerAlias(provider);
+  const preferredProviders = preferredProvidersForInspectModel(modelName);
   const providerModels = models.filter(
-    (entry) => entry.litellm_provider?.toLowerCase() === aliasedProvider
+    (entry) =>
+      entry.litellm_provider &&
+      preferredProviders.includes(entry.litellm_provider.toLowerCase())
   );
   const providerMatch = findMatchingModel(providerModels, candidates);
   if (providerMatch) {
