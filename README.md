@@ -88,6 +88,53 @@ List all available model modes.
 
 Cache metadata (last update time).
 
+### `GET /api/inspect-costs`
+
+Export Inspect-compatible model pricing as JSON or YAML.
+
+Query parameters:
+
+| Param | Description |
+| ----- | ----------- |
+| `model` | Inspect model name. Repeat the parameter to request multiple models. |
+| `models` | Comma-separated Inspect model names. Alternative to repeated `model` parameters. |
+| `format` | `json` or `yaml` (default `json`). Use `yaml` for `--model-cost-config`. |
+
+The response format matches Inspect's `ModelCost` object shape:
+
+- `input`
+- `output`
+- `input_cache_write`
+- `input_cache_read`
+
+All values are returned in dollars per million tokens.
+
+Examples:
+
+```bash
+curl "http://localhost:8787/api/inspect-costs?model=openai/gpt-4o&model=anthropic/claude-sonnet-4-5&format=yaml" -o pricing.yaml
+```
+
+```bash
+inspect eval ctf.py --model-cost-config pricing.yaml --cost-limit 2.00
+```
+
+```bash
+curl "http://localhost:8787/api/inspect-costs?models=openai/gpt-4o,google/gemini-2.5-pro,openrouter/gryphe/mythomax-l2-13b&format=json" -o pricing.json
+```
+
+Provider naming notes:
+
+- Use Inspect-style provider prefixes such as `openai`, `anthropic`, `google`, `openrouter`, `groq`, `ollama`, `bedrock`, `azureai`, `cf`, `fireworks`, `together`, and `perplexity`.
+- The service maps common Inspect names to LiteLLM dataset keys where they differ, for example:
+  - `google/...` -> `gemini/...`
+  - `azureai/...` -> `azure_ai/...`
+  - `cf/...` -> `cloudflare/@cf/...`
+  - `groq/...` -> `xai/...` is **not** applied; `groq/...` resolves against Groq dataset keys, while `grok/...` resolves against xAI keys
+  - `fireworks/...` -> `fireworks_ai/...`
+  - `together/...` -> `together_ai/...`
+- If a model name cannot be resolved, the API returns a `400` with the unresolved model names and the candidate dataset keys it tried.
+
 ### `GET /openapi.json`
 
 OpenAPI 3.1 spec for tool/MCP integration.

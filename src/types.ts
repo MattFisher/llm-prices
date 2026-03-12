@@ -6,8 +6,11 @@ export interface ModelEntry {
   max_input_tokens?: number;
   max_output_tokens?: number;
   input_cost_per_token?: number;
+  input_cost_per_token_cache_hit?: number;
   output_cost_per_token?: number;
   output_cost_per_reasoning_token?: number;
+  cache_creation_input_token_cost?: number;
+  cache_read_input_token_cost?: number;
   input_cost_per_audio_token?: number;
   input_cost_per_pixel?: number;
   output_cost_per_image?: number;

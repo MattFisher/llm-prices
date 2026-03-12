@@ -1,5 +1,6 @@
 import { ModelEntry, FilterParams, Env } from "./types";
 import { getModels, getMeta } from "./data";
+import { buildInspectCostExport, renderInspectCostsYaml } from "./inspect";
 
 function parseFilterParams(url: URL): FilterParams {
   const params: FilterParams = {};
@@ -120,6 +121,26 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
+function text(data: string, contentType: string, status = 200): Response {
+  return new Response(data, {
+    status,
+    headers: {
+      "Content-Type": contentType,
+      "Access-Control-Allow-Origin": "*",
+      "Cache-Control": "public, max-age=3600",
+    },
+  });
+}
+
+function parseInspectModelParams(url: URL): string[] {
+  const requested = [
+    ...url.searchParams.getAll("model"),
+    ...url.searchParams.getAll("models").flatMap((value) => value.split(",")),
+  ];
+
+  return requested.map((value) => value.trim()).filter(Boolean);
+}
+
 export async function handleApiRequest(
   url: URL,
   env: Env
@@ -156,6 +177,46 @@ export async function handleApiRequest(
   if (path === "/api/meta") {
     const meta = await getMeta(env);
     return json(meta ?? { updated_at: null });
+  }
+
+  if (path === "/api/inspect-costs") {
+    const requestedModels = parseInspectModelParams(url);
+    if (requestedModels.length === 0) {
+      return json(
+        {
+          error:
+            "At least one model is required. Provide ?model=openai/gpt-4o or ?models=openai/gpt-4o,anthropic/claude-sonnet-4-5",
+        },
+        400
+      );
+    }
+
+    const format = url.searchParams.get("format")?.toLowerCase() ?? "json";
+    if (format !== "json" && format !== "yaml") {
+      return json({ error: "format must be either 'json' or 'yaml'" }, 400);
+    }
+
+    const models = await getModels(env);
+    const result = buildInspectCostExport(models, requestedModels);
+
+    if (result.unresolved.length > 0) {
+      return json(
+        {
+          error: "One or more requested models could not be resolved",
+          unresolved: result.unresolved,
+        },
+        400
+      );
+    }
+
+    if (format === "yaml") {
+      return text(
+        renderInspectCostsYaml(result.costs),
+        "application/yaml; charset=utf-8"
+      );
+    }
+
+    return json(result.costs);
   }
 
   if (path === "/api/refresh") {
@@ -317,6 +378,43 @@ function openApiSpec(url: URL) {
           responses: {
             "200": {
               description: "Cache metadata including last update time",
+            },
+          },
+        },
+      },
+      "/api/inspect-costs": {
+        get: {
+          operationId: "getInspectModelCosts",
+          summary: "Export Inspect-compatible model cost data as JSON or YAML",
+          parameters: [
+            {
+              name: "model",
+              in: "query",
+              schema: { type: "string" },
+              description:
+                "Inspect model name. Repeat the parameter to request multiple models.",
+            },
+            {
+              name: "models",
+              in: "query",
+              schema: { type: "string" },
+              description:
+                "Comma-separated Inspect model names. Alternative to repeated model parameters.",
+            },
+            {
+              name: "format",
+              in: "query",
+              schema: { type: "string", enum: ["json", "yaml"], default: "json" },
+              description:
+                "Export format. YAML output is suitable for --model-cost-config.",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Inspect-compatible model cost configuration",
+            },
+            "400": {
+              description: "Invalid request or unresolved model names",
             },
           },
         },
