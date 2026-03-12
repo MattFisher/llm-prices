@@ -19,6 +19,12 @@ const models: ModelEntry[] = [
     cache_read_input_token_cost: 0.0000003,
   },
   {
+    key: "claude-sonnet-4-5",
+    litellm_provider: "bedrock",
+    input_cost_per_token: 0.00003,
+    output_cost_per_token: 0.00015,
+  },
+  {
     key: "gemini/gemini-2.5-pro",
     litellm_provider: "gemini",
     input_cost_per_token: 0.00000125,
@@ -54,7 +60,7 @@ describe("buildInspectCostExport", () => {
   it("resolves inspect-style model names across provider naming differences", () => {
     const result = buildInspectCostExport(models, [
       "openai/gpt-4o",
-      "anthropic/claude-sonnet-4-5",
+      "anthropic/claude-sonnet-4.5",
       "google/gemini-2.5-pro",
       "cf/meta/llama-2-7b-chat-fp16",
       "grok/grok-4",
@@ -68,7 +74,7 @@ describe("buildInspectCostExport", () => {
         input_cache_write: 0,
         input_cache_read: 1.25,
       },
-      "anthropic/claude-sonnet-4-5": {
+      "anthropic/claude-sonnet-4.5": {
         input: 3,
         output: 15,
         input_cache_write: 3.75,
@@ -95,6 +101,18 @@ describe("buildInspectCostExport", () => {
     });
   });
 
+  it("prefers the requested provider when multiple providers share the same model key", () => {
+    const result = buildInspectCostExport(models, ["bedrock/claude-sonnet-4.5"]);
+
+    expect(result.unresolved).toEqual([]);
+    expect(result.costs["bedrock/claude-sonnet-4.5"]).toEqual({
+      input: 30,
+      output: 150,
+      input_cache_write: 0,
+      input_cache_read: 0,
+    });
+  });
+
   it("returns candidate keys for unresolved model names", () => {
     const result = buildInspectCostExport(models, ["azureai/Llama-3.3-70B-Instruct"]);
 
@@ -104,7 +122,9 @@ describe("buildInspectCostExport", () => {
         model: "azureai/Llama-3.3-70B-Instruct",
         candidates: [
           "azureai/Llama-3.3-70B-Instruct",
+          "azureai/Llama-3-3-70B-Instruct",
           "azure_ai/Llama-3.3-70B-Instruct",
+          "azure_ai/Llama-3-3-70B-Instruct",
         ],
       },
     ]);
@@ -123,7 +143,7 @@ describe("renderInspectCostsYaml", () => {
     });
 
     expect(yaml).toBe(
-      '"openai/gpt-4o":\n  input: 2.5\n  output: 10\n  input_cache_write: 0\n  input_cache_read: 1.25'
+      '"openai/gpt-4o":\n  input: 2.5\n  output: 10\n  input_cache_write: 0\n  input_cache_read: 1.25\n'
     );
   });
 });

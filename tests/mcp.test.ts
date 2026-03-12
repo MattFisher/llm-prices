@@ -94,7 +94,9 @@ describe("createServer", () => {
           model: "google/gemini-2.5-pro",
           candidates: [
             "google/gemini-2.5-pro",
+            "google/gemini-2-5-pro",
             "gemini/gemini-2.5-pro",
+            "gemini/gemini-2-5-pro",
           ],
         },
       ],

@@ -21,6 +21,22 @@ const models: ModelEntry[] = [
     max_input_tokens: 128000,
   },
   {
+    key: "claude-sonnet-4-5",
+    litellm_provider: "anthropic",
+    mode: "chat",
+    input_cost_per_token: 0.000003,
+    output_cost_per_token: 0.000015,
+    cache_creation_input_token_cost: 0.00000375,
+    cache_read_input_token_cost: 0.0000003,
+  },
+  {
+    key: "claude-sonnet-4-5",
+    litellm_provider: "bedrock",
+    mode: "chat",
+    input_cost_per_token: 0.00003,
+    output_cost_per_token: 0.00015,
+  },
+  {
     key: "gemini/gemini-2.5-pro",
     litellm_provider: "gemini",
     mode: "chat",
@@ -75,8 +91,34 @@ describe("handleApiRequest", () => {
     expect(response?.status).toBe(200);
     expect(response?.headers.get("Content-Type")).toContain("application/yaml");
     await expect(response?.text()).resolves.toBe(
-      '"openai/gpt-4o":\n  input: 2.5\n  output: 10\n  input_cache_write: 0\n  input_cache_read: 1.25\n"google/gemini-2.5-pro":\n  input: 1.25\n  output: 10\n  input_cache_write: 0\n  input_cache_read: 0.125'
+      '"openai/gpt-4o":\n  input: 2.5\n  output: 10\n  input_cache_write: 0\n  input_cache_read: 1.25\n"google/gemini-2.5-pro":\n  input: 1.25\n  output: 10\n  input_cache_write: 0\n  input_cache_read: 0.125\n'
     );
+  });
+
+  it("resolves dotted anthropic model names and keeps provider-specific matches", async () => {
+    const response = await handleApiRequest(
+      new URL(
+        "https://example.com/api/inspect-costs?model=anthropic/claude-sonnet-4.5&model=bedrock/claude-sonnet-4.5"
+      ),
+      env
+    );
+
+    expect(response).not.toBeNull();
+    expect(response?.status).toBe(200);
+    await expect(response?.json()).resolves.toEqual({
+      "anthropic/claude-sonnet-4.5": {
+        input: 3,
+        output: 15,
+        input_cache_write: 3.75,
+        input_cache_read: 0.3,
+      },
+      "bedrock/claude-sonnet-4.5": {
+        input: 30,
+        output: 150,
+        input_cache_write: 0,
+        input_cache_read: 0,
+      },
+    });
   });
 
   it("returns a 400 when no inspect model names are provided", async () => {
@@ -108,7 +150,9 @@ describe("handleApiRequest", () => {
           model: "azureai/Llama-3.3-70B-Instruct",
           candidates: [
             "azureai/Llama-3.3-70B-Instruct",
+            "azureai/Llama-3-3-70B-Instruct",
             "azure_ai/Llama-3.3-70B-Instruct",
+            "azure_ai/Llama-3-3-70B-Instruct",
           ],
         },
       ],

@@ -53,6 +53,31 @@ function splitInspectModelName(modelName: string): {
   };
 }
 
+function addCandidate(candidates: Set<string>, candidate: string): void {
+  if (!candidate) {
+    return;
+  }
+
+  candidates.add(candidate);
+
+  if (candidate.includes(".")) {
+    candidates.add(candidate.replace(/\./g, "-"));
+  }
+}
+
+function normalizeForComparison(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .split("/")
+    .map((segment) => segment.replace(/[._-]+/g, "-"))
+    .join("/");
+}
+
+function providerAlias(provider: string): string {
+  return PROVIDER_ALIASES[provider.toLowerCase()] ?? provider.toLowerCase();
+}
+
 function candidateKeysForInspectModel(modelName: string): string[] {
   const trimmed = modelName.trim();
   const { provider, model } = splitInspectModelName(trimmed);
@@ -62,14 +87,14 @@ function candidateKeysForInspectModel(modelName: string): string[] {
     return [];
   }
 
-  candidates.add(trimmed);
+  addCandidate(candidates, trimmed);
 
   if (!provider) {
     return [...candidates];
   }
 
   const providerLower = provider.toLowerCase();
-  const aliasedProvider = PROVIDER_ALIASES[providerLower] ?? providerLower;
+  const aliasedProvider = providerAlias(providerLower);
 
   switch (providerLower) {
     case "openai":
@@ -77,80 +102,100 @@ function candidateKeysForInspectModel(modelName: string): string[] {
     case "bedrock":
     case "bedrock_converse":
     case "bedrock-converse":
-      candidates.add(model);
+      addCandidate(candidates, model);
       break;
 
     case "google":
-      candidates.add(`gemini/${model}`);
+      addCandidate(candidates, `gemini/${model}`);
       break;
 
     case "azureai":
-      candidates.add(`azure_ai/${model}`);
+      addCandidate(candidates, `azure_ai/${model}`);
       break;
 
     case "cf":
-      candidates.add(`cloudflare/@cf/${model}`);
-      candidates.add(`cloudflare/${model}`);
-      candidates.add(`@cf/${model}`);
+      addCandidate(candidates, `cloudflare/@cf/${model}`);
+      addCandidate(candidates, `cloudflare/${model}`);
+      addCandidate(candidates, `@cf/${model}`);
       break;
 
     case "together":
-      candidates.add(`together_ai/${model}`);
-      candidates.add(model);
+      addCandidate(candidates, `together_ai/${model}`);
+      addCandidate(candidates, model);
       break;
 
     case "fireworks":
-      candidates.add(`fireworks_ai/${model}`);
-      candidates.add(model);
+      addCandidate(candidates, `fireworks_ai/${model}`);
+      addCandidate(candidates, model);
       break;
 
     case "grok":
-      candidates.add(`xai/${model}`);
-      candidates.add(model);
+      addCandidate(candidates, `xai/${model}`);
+      addCandidate(candidates, model);
       break;
 
     case "deepseek":
-      candidates.add(`deepseek/${model}`);
-      candidates.add(model);
+      addCandidate(candidates, `deepseek/${model}`);
+      addCandidate(candidates, model);
       break;
 
     default:
-      candidates.add(`${aliasedProvider}/${model}`);
+      addCandidate(candidates, `${aliasedProvider}/${model}`);
       break;
   }
 
   return [...candidates];
 }
 
-function findModelByCandidates(
+function findMatchingModel(
   models: ModelEntry[],
-  modelName: string
+  candidates: string[]
 ): ModelEntry | null {
-  const normalizedCandidates = new Set(
-    candidateKeysForInspectModel(modelName).map((candidate) => candidate.toLowerCase())
+  const exactCandidates = new Set(
+    candidates.map((candidate) => candidate.toLowerCase())
   );
 
   for (const model of models) {
-    if (normalizedCandidates.has(model.key.toLowerCase())) {
+    if (exactCandidates.has(model.key.toLowerCase())) {
       return model;
     }
   }
 
-  const { provider, model } = splitInspectModelName(modelName);
-  if (!provider) {
-    return null;
+  const normalizedCandidates = new Set(
+    candidates.map((candidate) => normalizeForComparison(candidate))
+  );
+
+  for (const model of models) {
+    if (normalizedCandidates.has(normalizeForComparison(model.key))) {
+      return model;
+    }
   }
 
-  const aliasedProvider = PROVIDER_ALIASES[provider.toLowerCase()] ?? provider.toLowerCase();
-  const normalizedModel = model.toLowerCase();
+  return null;
+}
 
-  for (const entry of models) {
-    if (entry.litellm_provider?.toLowerCase() !== aliasedProvider) {
-      continue;
-    }
+function findModelByCandidates(
+  models: ModelEntry[],
+  modelName: string
+): ModelEntry | null {
+  const candidates = candidateKeysForInspectModel(modelName);
+  const { provider, model } = splitInspectModelName(modelName);
+  if (!provider) {
+    return findMatchingModel(models, candidates);
+  }
 
-    const key = entry.key.toLowerCase();
-    if (key === normalizedModel || key.endsWith(`/${normalizedModel}`)) {
+  const aliasedProvider = providerAlias(provider);
+  const providerModels = models.filter(
+    (entry) => entry.litellm_provider?.toLowerCase() === aliasedProvider
+  );
+  const providerMatch = findMatchingModel(providerModels, candidates);
+  if (providerMatch) {
+    return providerMatch;
+  }
+
+  const normalizedModel = normalizeForComparison(model);
+  for (const entry of providerModels) {
+    if (normalizeForComparison(entry.key) === normalizedModel) {
       return entry;
     }
   }
@@ -200,10 +245,12 @@ export function buildInspectCostExport(
 export function renderInspectCostsYaml(
   costs: Record<string, InspectModelCost>
 ): string {
-  return Object.entries(costs)
+  const body = Object.entries(costs)
     .map(
       ([model, cost]) =>
         `${JSON.stringify(model)}:\n  input: ${cost.input}\n  output: ${cost.output}\n  input_cache_write: ${cost.input_cache_write}\n  input_cache_read: ${cost.input_cache_read}`
     )
     .join("\n");
+
+  return body ? `${body}\n` : "";
 }
