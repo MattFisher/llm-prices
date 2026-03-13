@@ -10,7 +10,16 @@ Data is refreshed every 6 hours from [litellm](https://github.com/BerriAI/litell
 - [List Providers]({{BASE}}/api/providers): GET — returns all available provider names.
 - [List Modes]({{BASE}}/api/modes): GET — returns all available model modes (chat, embedding, completion, etc.).
 - [Metadata]({{BASE}}/api/meta): GET — returns cache metadata including last refresh timestamp and model count.
+- [Inspect Costs]({{BASE}}/api/inspect-costs?model=openai/gpt-4o): GET — returns Inspect-compatible model cost data for one or more requested models. Supports `model`, `models`, and `format=json|yaml`.
 - [OpenAPI Spec]({{BASE}}/openapi.json): GET — full OpenAPI 3.0 specification for tool/MCP integration.
+
+## Inspect AI
+
+Retrieve Inspect-compatible pricing data from `/api/inspect-costs` using either repeated `model` params or a comma-separated `models` param.
+
+- JSON example: [`{{BASE}}/api/inspect-costs?model=openai/gpt-4o&model=anthropic/claude-sonnet-4-5`]({{BASE}}/api/inspect-costs?model=openai/gpt-4o&model=anthropic/claude-sonnet-4-5)
+- YAML example: [`{{BASE}}/api/inspect-costs?models=openai/gpt-4o,google/gemini-2.5-pro&format=yaml`]({{BASE}}/api/inspect-costs?models=openai/gpt-4o,google/gemini-2.5-pro&format=yaml)
+- `curl`: `curl "{{BASE}}/api/inspect-costs?models=openai/gpt-4o,anthropic/claude-sonnet-4-5&format=yaml" -o inspect-costs.yaml`
 
 ## MCP
 
